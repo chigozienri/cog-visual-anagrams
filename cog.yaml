@@ -1,0 +1,34 @@
+# Specify build properties
+build:
+  # Use GPU for faster inference
+  gpu: true
+  cuda: "11.8"
+
+  # System packages required for the model
+  system_packages:
+    - "libgl1-mesa-glx"
+    - "libglib2.0-0"
+    - "libsentencepiece-dev"
+
+  # Python version
+  python_version: "3.8"
+
+  # Python packages required for the model
+  python_packages:
+    - "diffusers==0.16.1"
+    - "transformers==4.28.1"
+    - "safetensors==0.3.1"
+    - "sentencepiece==0.1.97"
+    - "accelerate==0.18.0"
+    - "bitsandbytes==0.38.1"
+    - "torch==2.0.0"
+    - "einops==0.7.0"
+    - "torchvision==0.15.1+cu118"
+    - "imageio==2.33.0"
+    - "imageio-ffmpeg==0.4.9"
+
+  run:
+    - curl -o /usr/local/bin/pget -L "https://github.com/replicate/pget/releases/download/v0.0.6/pget" && chmod +x /usr/local/bin/pget
+
+# Prediction script
+predict: "predict.py:Predictor"
