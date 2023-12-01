@@ -71,7 +71,7 @@ class Predictor(BasePredictor):
         num_inference_steps_2: int = Input(default=30),
         guidance_scale_2: float = Input(default=10.0),
         noise_level: int = Input(default=50),
-        seed: int = Input(default=None),
+        seed: int = Input(default=None, description="Leave empty for a random seed"),
         video: bool = Input(default=True),
     ) -> List[Path]:
         """Run a single prediction on the model"""
@@ -91,9 +91,10 @@ class Predictor(BasePredictor):
 
         # # Save metadata
         # save_metadata(views, args, save_dir)
-        if video and len(views) != 2 and views[0] != "identity":
+        if video and len(views) != 2 and (views[0] != "identity" or views[1] in "pixel_permute, patch_permute"):
             print(
-                "WARNING: Outputting a video requires only two views, and the first view must be the identity. This run will not output a video."
+                "WARNING: Outputting a video requires only two views, and the first view must be the identity. "
+                "pixel_permute and patch_permute also don't support video yet. This run will not output a video."
             )
             video = False
         outputs = []
