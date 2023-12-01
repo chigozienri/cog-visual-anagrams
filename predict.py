@@ -18,6 +18,20 @@ DEEPFLOYD_IF_URL = (
 )
 
 
+def format_long_lines(input_string):
+    words = input_string.split()
+    result = []
+    line_length = 0
+    for word in words:
+        if line_length + len(word) > 30:
+            result.append("\n")
+            line_length = 0
+        result.append(word)
+        result.append(" ")
+        line_length += len(word) + 1
+    return "".join(result)
+
+
 class Predictor(BasePredictor):
     def setup(self):
         """Load the models into memory to make running multiple predictions efficient"""
@@ -59,10 +73,12 @@ class Predictor(BasePredictor):
             default="a rabbit, a coffee cup",
         ),
         views: str = Input(
-            description=("Comma-separated list of views. Must be same length as prompts. "
-                         "First view should usually be 'identity'. Available Views: 'identity', "
-                         "'flip', 'rotate_cw', 'rotate_ccw', 'rotate_180', 'negate', 'skew', "
-                         "'patch_permute', 'pixel_permute', 'jigsaw', 'inner_circle'"),
+            description=(
+                "Comma-separated list of views. Must be same length as prompts. "
+                "First view should usually be 'identity'. Available Views: 'identity', "
+                "'flip', 'rotate_cw', 'rotate_ccw', 'rotate_180', 'negate', 'skew', "
+                "'patch_permute', 'pixel_permute', 'jigsaw', 'inner_circle'"
+            ),
             default="identity, jigsaw",
         ),
         num_samples: int = Input(default=1),
@@ -77,11 +93,12 @@ class Predictor(BasePredictor):
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
         prompts = [prompt.strip() for prompt in prompts.split(",")]
-        prompts = [style.strip() + (" " if len(style) > 0 else "") + prompt for prompt in prompts]
-        views = [view.strip() for view in views.split(",")]
-        prompt_embeds = [
-            self.stage_1.encode_prompt(p) for p in prompts
+        prompts = [
+            style.strip() + (" " if len(style) > 0 else "") + prompt
+            for prompt in prompts
         ]
+        views = [view.strip() for view in views.split(",")]
+        prompt_embeds = [self.stage_1.encode_prompt(p) for p in prompts]
         prompt_embeds, negative_prompt_embeds = zip(*prompt_embeds)
         prompt_embeds = torch.cat(prompt_embeds)
         negative_prompt_embeds = torch.cat(negative_prompt_embeds)
@@ -91,7 +108,11 @@ class Predictor(BasePredictor):
 
         # # Save metadata
         # save_metadata(views, args, save_dir)
-        if video and len(views) != 2 and (views[0] != "identity" or views[1] in "pixel_permute, patch_permute"):
+        if (
+            video
+            and len(views) != 2
+            and (views[0] != "identity" or views[1] in "pixel_permute, patch_permute")
+        ):
             print(
                 "WARNING: Outputting a video requires only two views, and the first view must be the identity. "
                 "pixel_permute and patch_permute also don't support video yet. This run will not output a video."
@@ -134,8 +155,8 @@ class Predictor(BasePredictor):
                 animate_two_view(
                     os.path.join(sample_dir, os.listdir(sample_dir)[0]),
                     views[1],
-                    prompts[0],
-                    prompts[1],
+                    format_long_lines(prompts[0]),
+                    format_long_lines(prompts[1]),
                     save_video_path=video_path,
                     hold_duration=120,
                     text_fade_duration=10,
