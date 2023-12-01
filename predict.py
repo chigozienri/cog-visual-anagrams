@@ -70,7 +70,6 @@ class Predictor(BasePredictor):
         guidance_scale_1: float = Input(default=10.0),
         num_inference_steps_2: int = Input(default=30),
         guidance_scale_2: float = Input(default=10.0),
-        noise_level: int = Input(default=50),
         seed: int = Input(default=None, description="Leave empty for a random seed"),
         video: bool = Input(default=True),
     ) -> List[Path]:
@@ -120,7 +119,7 @@ class Predictor(BasePredictor):
                 num_inference_steps=num_inference_steps_2,
                 guidance_scale=guidance_scale_2,
                 reduction="mean",
-                noise_level=noise_level,
+                noise_level=50,
                 generator=torch.manual_seed(seed + i),
             )
             save_illusion(image, views, sample_dir)
