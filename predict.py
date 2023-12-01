@@ -125,23 +125,23 @@ class Predictor(BasePredictor):
             save_illusion(image, views, sample_dir)
 
             print([f for f in os.listdir(sample_dir)])
-            for j, f in enumerate(os.listdir(sample_dir)):
+            for f in os.listdir(sample_dir):
                 im_path = os.path.join(sample_dir, f)
                 outputs.append(Path(im_path))
-                if video and j == 0:
-                    video_path = os.path.join(sample_dir, "video.mp4")
-                    animate_two_view(
-                        im_path,
-                        views[1],
-                        style + prompts[0],
-                        style + prompts[1],
-                        save_video_path=video_path,
-                        hold_duration=120,
-                        text_fade_duration=10,
-                        transition_duration=45,
-                        im_size=256,
-                        frame_size=384,
-                    )
+            if video:
+                video_path = os.path.join(sample_dir, "video.mp4")
+                animate_two_view(
+                    os.path.join(sample_dir, os.listdir(sample_dir)[0]),
+                    views[1],
+                    style + prompts[0],
+                    style + prompts[1],
+                    save_video_path=video_path,
+                    hold_duration=120,
+                    text_fade_duration=10,
+                    transition_duration=45,
+                    im_size=256,
+                    frame_size=384,
+                )
 
-                    outputs.append(Path(video_path))
+                outputs.append(Path(video_path))
         return outputs
