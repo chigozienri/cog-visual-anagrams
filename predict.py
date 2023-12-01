@@ -77,9 +77,10 @@ class Predictor(BasePredictor):
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
         prompts = [prompt.strip() for prompt in prompts.split(",")]
+        prompts = [style.strip() + (" " if len(style) > 0 else "") + prompt for prompt in prompts]
         views = [view.strip() for view in views.split(",")]
         prompt_embeds = [
-            self.stage_1.encode_prompt(f"{style} {p}".strip()) for p in prompts
+            self.stage_1.encode_prompt(p) for p in prompts
         ]
         prompt_embeds, negative_prompt_embeds = zip(*prompt_embeds)
         prompt_embeds = torch.cat(prompt_embeds)
@@ -133,8 +134,8 @@ class Predictor(BasePredictor):
                 animate_two_view(
                     os.path.join(sample_dir, os.listdir(sample_dir)[0]),
                     views[1],
-                    style + prompts[0],
-                    style + prompts[1],
+                    prompts[0],
+                    prompts[1],
                     save_video_path=video_path,
                     hold_duration=120,
                     text_fade_duration=10,
