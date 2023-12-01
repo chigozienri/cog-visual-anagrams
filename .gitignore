@@ -1,4 +1,5 @@
 results/
 .vscode/
 __pycache__/
-diffusers-cache
+diffusers-cache/
+.cog/

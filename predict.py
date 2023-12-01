@@ -1,6 +1,6 @@
 import os
 import tempfile
-from typing import Iterator
+from typing import List
 
 import torch
 from cog import BasePredictor, Input, Path
@@ -50,10 +50,17 @@ class Predictor(BasePredictor):
 
     def predict(
         self,
-        style: str = Input(),
-        prompts: str = Input(description="Comma-separated list of prompts"),
+        style: str = Input(
+            description="Prompt prefix of the visual style. Looser styles work better.",
+            default="an oil painting of ",
+        ),
+        prompts: str = Input(
+            description="Comma-separated list of prompts",
+            default="a rabbit, a coffee cup",
+        ),
         views: str = Input(
-            description="Comma-separated list of views, e.g. `jigsaw`. Must be same length as prompts"
+            description="Comma-separated list of views. Must be same length as prompts. First view should usually be `identity`",
+            default="identity, jigsaw",
         ),
         num_samples: int = Input(default=1),
         num_inference_steps_1: int = Input(default=30),
@@ -61,10 +68,12 @@ class Predictor(BasePredictor):
         num_inference_steps_2: int = Input(default=30),
         guidance_scale_2: float = Input(default=10.0),
         noise_level: int = Input(default=50),
-        seed: int = Input(default=0),
+        seed: int = Input(default=None),
         video: bool = Input(default=True),
-    ) -> Iterator[Path]:
+    ) -> List[Path]:
         """Run a single prediction on the model"""
+        if seed is None:
+            seed = int.from_bytes(os.urandom(2), "big")
         prompts = [prompt.strip() for prompt in prompts.split(",")]
         views = [view.strip() for view in views.split(",")]
         prompt_embeds = [
@@ -84,6 +93,7 @@ class Predictor(BasePredictor):
                 "WARNING: Outputting a video requires only two views, and the first view must be the identity. This run will not output a video."
             )
             video = False
+        outputs = []
         for i in range(num_samples):
             sample_dir = save_dir / f"{i:04}"
             sample_dir.mkdir(exist_ok=True, parents=True)
@@ -114,7 +124,7 @@ class Predictor(BasePredictor):
             print([f for f in os.listdir(sample_dir)])
             for j, f in enumerate(os.listdir(sample_dir)):
                 im_path = os.path.join(sample_dir, f)
-                yield Path(im_path)
+                outputs.append(Path(im_path))
                 if video and j == 0:
                     video_path = os.path.join(sample_dir, "video.mp4")
                     animate_two_view(
@@ -130,4 +140,5 @@ class Predictor(BasePredictor):
                         frame_size=384,
                     )
 
-                    yield (Path(video_path))
+                    outputs.append(Path(video_path))
+        return outputs
