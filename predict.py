@@ -59,7 +59,10 @@ class Predictor(BasePredictor):
             default="a rabbit, a coffee cup",
         ),
         views: str = Input(
-            description="Comma-separated list of views. Must be same length as prompts. First view should usually be `identity`",
+            description=("Comma-separated list of views. Must be same length as prompts. "
+                         "First view should usually be 'identity'. Available Views: 'identity', "
+                         "'flip', 'rotate_cw', 'rotate_ccw', 'rotate_180', 'negate', 'skew', "
+                         "'patch_permute', 'pixel_permute', 'jigsaw', 'inner_circle'"),
             default="identity, jigsaw",
         ),
         num_samples: int = Input(default=1),
