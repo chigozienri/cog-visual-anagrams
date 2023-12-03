@@ -13,10 +13,16 @@ from visual_anagrams.views import get_views
 from weights_downloader import WeightsDownloader
 
 MODEL_CACHE = "diffusers-cache"
-DEEPFLOYD_IF_URL = (
-    "https://weights.replicate.delivery/default/deep-floyd/DeepFloyd--IF-I-M-v1.0.tar"
-)
 
+DEEPFLOYD_IF_I_URL = (
+    "https://weights.replicate.delivery/default/deep-floyd-if/DeepFloyd--IF-I-M-v1.0.tar"
+)
+DEEPFLOYD_IF_I_CACHE = os.path.join(MODEL_CACHE, "models--DeepFloyd--IF-I-M-v1.0")
+
+DEEPFLOYD_IF_II_URL = (
+    "https://weights.replicate.delivery/default/deep-floyd-if/DeepFloyd--IF-II-M-v1.0.tar"
+)
+DEEPFLOYD_IF_I_CACHE = os.path.join(MODEL_CACHE, "models--DeepFloyd--IF-II-M-v1.0")
 
 def format_long_lines(input_string):
     words = input_string.split()
@@ -36,7 +42,7 @@ class Predictor(BasePredictor):
     def setup(self):
         """Load the models into memory to make running multiple predictions efficient"""
 
-        WeightsDownloader.download_if_not_exists(DEEPFLOYD_IF_URL, MODEL_CACHE)
+        WeightsDownloader.download_if_not_exists(DEEPFLOYD_IF_I_URL, DEEPFLOYD_IF_I_CACHE)
         self.stage_1 = DiffusionPipeline.from_pretrained(
             "DeepFloyd/IF-I-M-v1.0",
             variant="fp16",
@@ -44,6 +50,8 @@ class Predictor(BasePredictor):
             local_files_only=True,
             cache_dir=MODEL_CACHE,
         )
+
+        WeightsDownloader.download_if_not_exists(DEEPFLOYD_IF_I_URL, DEEPFLOYD_IF_I_CACHE)
         self.stage_2 = DiffusionPipeline.from_pretrained(
             "DeepFloyd/IF-II-M-v1.0",
             text_encoder=None,
@@ -65,8 +73,8 @@ class Predictor(BasePredictor):
     def predict(
         self,
         style: str = Input(
-            description="Prompt prefix of the visual style. Looser styles work better.",
-            default="an oil painting of ",
+            description="Prompt prefix of the visual style, e.g. 'an oil painting of'. Looser styles work better.",
+            default="",
         ),
         prompts: str = Input(
             description="Comma-separated list of prompts",
