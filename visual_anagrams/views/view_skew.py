@@ -1,7 +1,6 @@
-from PIL import Image
 import numpy as np
-
 import torch
+from PIL import Image
 
 from .view_base import BaseView
 
@@ -11,20 +10,20 @@ class SkewView(BaseView):
         self.skew_factor = skew_factor
 
     def skew_image(self, im, skew_factor):
-        '''
+        """
         Roll each column of the image by increasing displacements.
             This is a permutation of pixels
-        '''
+        """
 
         # Params
-        c,h,w = im.shape
-        h_center = h//2
+        c, h, w = im.shape
+        h_center = h // 2
 
         # Roll columns
         cols = []
         for i in range(w):
             d = int(skew_factor * (i - h_center))  # Displacement
-            col = im[:,:,i]
+            col = im[:, :, i]
             cols.append(col.roll(d, dims=1))
 
         # Stack rolled columns
@@ -43,13 +42,12 @@ class SkewView(BaseView):
         skew_factor = t * self.skew_factor
 
         # Convert to tensor, skew, then convert back to PIL
-        im = torch.tensor(np.array(im) / 255.).permute(2,0,1)
+        im = torch.tensor(np.array(im) / 255.0).permute(2, 0, 1)
         im = self.skew_image(im, skew_factor)
-        im = Image.fromarray((np.array(im.permute(1,2,0)) * 255.).astype(np.uint8))
+        im = Image.fromarray((np.array(im.permute(1, 2, 0)) * 255.0).astype(np.uint8))
 
         # Paste on to canvas
-        frame = Image.new('RGB', (frame_size, frame_size), (255, 255, 255))
+        frame = Image.new("RGB", (frame_size, frame_size), (255, 255, 255))
         frame.paste(im, ((frame_size - im_size) // 2, (frame_size - im_size) // 2))
 
         return frame
-

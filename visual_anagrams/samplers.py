@@ -1,29 +1,28 @@
-from tqdm import tqdm
-
 import torch
 import torch.nn.functional as F
-
 from diffusers.utils.torch_utils import randn_tensor
+from tqdm import tqdm
+
 
 @torch.no_grad()
-def sample_stage_1(model,
-                   prompt_embeds,
-                   negative_prompt_embeds, 
-                   views,
-                   num_inference_steps=100,
-                   guidance_scale=7.0,
-                   reduction='mean',
-                   generator=None):
-
+def sample_stage_1(
+    model,
+    prompt_embeds,
+    negative_prompt_embeds,
+    views,
+    num_inference_steps=100,
+    guidance_scale=7.0,
+    reduction="mean",
+    generator=None,
+):
     # Params
     num_images_per_prompt = 1
     device = model.device
     height = model.unet.config.sample_size
     width = model.unet.config.sample_size
-    batch_size = 1      # TODO: Support larger batch sizes, maybe
+    batch_size = 1  # TODO: Support larger batch sizes, maybe
     num_prompts = prompt_embeds.shape[0]
-    assert num_prompts == len(views), \
-        "Number of prompts must match number of views!"
+    assert num_prompts == len(views), "Number of prompts must match number of views!"
 
     # For CFG
     prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds])
@@ -74,7 +73,7 @@ def sample_stage_1(model,
             inverted_preds.append(inverted_pred)
         noise_pred_uncond = torch.stack(inverted_preds)
 
-                                # Invert the conditional estimates
+        # Invert the conditional estimates
         inverted_preds = []
         for pred, view in zip(noise_pred_text, views):
             inverted_pred = view.inverse_view(pred)
@@ -83,20 +82,24 @@ def sample_stage_1(model,
 
         # Split into noise estimate and variance estimates
         noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1], dim=1)
-        noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1], dim=1)
-        noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+        noise_pred_text, predicted_variance = noise_pred_text.split(
+            model_input.shape[1], dim=1
+        )
+        noise_pred = noise_pred_uncond + guidance_scale * (
+            noise_pred_text - noise_pred_uncond
+        )
 
         # Reduce predicted noise and variances
-        noise_pred = noise_pred.view(-1,num_prompts,3,64,64)
-        predicted_variance = predicted_variance.view(-1,num_prompts,3,64,64)
-        if reduction == 'mean':
+        noise_pred = noise_pred.view(-1, num_prompts, 3, 64, 64)
+        predicted_variance = predicted_variance.view(-1, num_prompts, 3, 64, 64)
+        if reduction == "mean":
             noise_pred = noise_pred.mean(1)
             predicted_variance = predicted_variance.mean(1)
-        elif reduction == 'alternate':
-            noise_pred = noise_pred[:,i%num_prompts]
-            predicted_variance = predicted_variance[:,i%num_prompts]
+        elif reduction == "alternate":
+            noise_pred = noise_pred[:, i % num_prompts]
+            predicted_variance = predicted_variance[:, i % num_prompts]
         else:
-            raise ValueError('Reduction must be either `mean` or `alternate`')
+            raise ValueError("Reduction must be either `mean` or `alternate`")
         noise_pred = torch.cat([noise_pred, predicted_variance], dim=1)
 
         # compute the previous noisy sample x_t -> x_t-1
@@ -108,25 +111,21 @@ def sample_stage_1(model,
     return noisy_images
 
 
-
-
-
-
-
 @torch.no_grad()
-def sample_stage_2(model,
-                   image,
-                   prompt_embeds,
-                   negative_prompt_embeds, 
-                   views,
-                   num_inference_steps=100,
-                   guidance_scale=7.0,
-                   reduction='mean',
-                   noise_level=50,
-                   generator=None):
-
+def sample_stage_2(
+    model,
+    image,
+    prompt_embeds,
+    negative_prompt_embeds,
+    views,
+    num_inference_steps=100,
+    guidance_scale=7.0,
+    reduction="mean",
+    noise_level=50,
+    generator=None,
+):
     # Params
-    batch_size = 1      # TODO: Support larger batch sizes, maybe
+    batch_size = 1  # TODO: Support larger batch sizes, maybe
     num_prompts = prompt_embeds.shape[0]
     height = model.unet.config.sample_size
     width = model.unet.config.sample_size
@@ -153,11 +152,22 @@ def sample_stage_2(model,
 
     # Prepare upscaled image and noise level
     image = model.preprocess_image(image, num_images_per_prompt, device)
-    upscaled = F.interpolate(image, (height, width), mode="bilinear", align_corners=True)
+    upscaled = F.interpolate(
+        image, (height, width), mode="bilinear", align_corners=True
+    )
 
-    noise_level = torch.tensor([noise_level] * upscaled.shape[0], device=upscaled.device)
-    noise = randn_tensor(upscaled.shape, generator=generator, device=upscaled.device, dtype=upscaled.dtype)
-    upscaled = model.image_noising_scheduler.add_noise(upscaled, noise, timesteps=noise_level)
+    noise_level = torch.tensor(
+        [noise_level] * upscaled.shape[0], device=upscaled.device
+    )
+    noise = randn_tensor(
+        upscaled.shape,
+        generator=generator,
+        device=upscaled.device,
+        dtype=upscaled.dtype,
+    )
+    upscaled = model.image_noising_scheduler.add_noise(
+        upscaled, noise, timesteps=noise_level
+    )
 
     # Condition on noise level, for each model input
     noise_level = torch.cat([noise_level] * num_prompts * 2)
@@ -208,18 +218,22 @@ def sample_stage_2(model,
 
         # Split predicted noise and predicted variances
         noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1] // 2, dim=1)
-        noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1] // 2, dim=1)
-        noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+        noise_pred_text, predicted_variance = noise_pred_text.split(
+            model_input.shape[1] // 2, dim=1
+        )
+        noise_pred = noise_pred_uncond + guidance_scale * (
+            noise_pred_text - noise_pred_uncond
+        )
 
         # Combine noise estimates (and variance estimates)
-        noise_pred = noise_pred.view(-1,num_prompts,3,256,256)
-        predicted_variance = predicted_variance.view(-1,num_prompts,3,256,256)
-        if reduction == 'mean':
+        noise_pred = noise_pred.view(-1, num_prompts, 3, 256, 256)
+        predicted_variance = predicted_variance.view(-1, num_prompts, 3, 256, 256)
+        if reduction == "mean":
             noise_pred = noise_pred.mean(1)
             predicted_variance = predicted_variance.mean(1)
-        elif reduction == 'alternate':
-            noise_pred = noise_pred[:,i%num_prompts]
-            predicted_variance = predicted_variance[:,i%num_prompts]
+        elif reduction == "alternate":
+            noise_pred = noise_pred[:, i % num_prompts]
+            predicted_variance = predicted_variance[:, i % num_prompts]
 
         noise_pred = torch.cat([noise_pred, predicted_variance], dim=1)
 

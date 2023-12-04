@@ -1,32 +1,34 @@
 from pathlib import Path
+
 import numpy as np
-import torch 
+import torch
 import torchvision.transforms.functional as TF
 from einops import rearrange, repeat
 
 from .jigsaw_helpers import get_jigsaw_pieces
 
+
 def get_inv_perm(perm):
-    '''
+    """
     Get the inverse permutation of a permutation. That is, the array such that
         perm[perm_inv] = perm_inv[perm] = arange(len(perm))
 
     perm (torch.tensor) :
         A 1-dimensional integer array, representing a permutation. Indicates
         that element i should move to index perm[i]
-    '''
+    """
     perm_inv = torch.empty_like(perm)
     perm_inv[perm] = torch.arange(len(perm))
     return perm_inv
 
 
 def make_inner_circle_perm(im_size=64, r=24):
-    '''
+    """
     Makes permutations for "inner circle" view. Given size of image, and
-    `r`, the radius of the circle. We do this by iterating through every 
+    `r`, the radius of the circle. We do this by iterating through every
     pixel and figuring out where it should go.
-    '''
-    perm = []       # Permutation array
+    """
+    perm = []  # Permutation array
 
     # Iterate through all positions, in order
     for iy in range(im_size):
@@ -51,10 +53,8 @@ def make_inner_circle_perm(im_size=64, r=24):
     return perm
 
 
-
-
 def make_jigsaw_perm(size, seed=0):
-    '''
+    """
     Returns a permutation of pixels that is a jigsaw permutation
 
     There are 3 types of pieces: corner, edge, and inner pieces. These were
@@ -77,17 +77,17 @@ def make_jigsaw_perm(size, seed=0):
         2. permutation of inner (i) pieces (length 4 perm list)
         3. permutation of edge (e) pieces (length 4 perm list)
         4. permutation of edge (f) pieces (length 4 perm list)
-        5. list of four swaps, indicating swaps between e and f 
+        5. list of four swaps, indicating swaps between e and f
                 edge pieces along the same edge (length 4 bit list)
 
-        Note these perm indexes will just be a "rotation index" indicating 
-        how many 90 deg rotations to apply to the base pieces. The swaps 
-        ensure that any edge piece can go to any edge piece, and are indexed 
+        Note these perm indexes will just be a "rotation index" indicating
+        how many 90 deg rotations to apply to the base pieces. The swaps
+        ensure that any edge piece can go to any edge piece, and are indexed
         by the indexes of the "e" and "f" pieces on the edge.
 
     Also note, order of indexes in permutation array is raster scan order. So,
-        go along x's first, then y's. This means y * size + x gives us the 
-        1-D location in the permutation array. And image arrays are in 
+        go along x's first, then y's. This means y * size + x gives us the
+        1-D location in the permutation array. And image arrays are in
         (y,x) order.
 
     Plan of attack for making a pixel permutation array that represents
@@ -99,11 +99,11 @@ def make_jigsaw_perm(size, seed=0):
         4. Additionally, see if it's an edge piece, and needs to be swapped
         5. Add the new (1-D) index to the permutation array
 
-    '''
+    """
     np.random.seed(seed)
 
     # Get location of puzzle pieces
-    piece_dir = Path(__file__).parent / 'assets'
+    piece_dir = Path(__file__).parent / "assets"
 
     # Get random permutations of groups of 4, and cat
     identity = np.arange(4)
@@ -124,7 +124,7 @@ def make_jigsaw_perm(size, seed=0):
     for y in range(size):
         for x in range(size):
             # Figure out which piece (x,y) is in:
-            piece_idx = pieces[:,y,x].argmax()
+            piece_idx = pieces[:, y, x].argmax()
 
             # Figure out how many 90 deg rotations are on the piece
             rot_idx = piece_idx % 4
@@ -135,24 +135,24 @@ def make_jigsaw_perm(size, seed=0):
             angle = (dest_rot_idx - rot_idx) * 90 / 180 * np.pi
 
             # Center coordinates on origin
-            cx = x - (size - 1) / 2.
-            cy = y - (size - 1) / 2.
+            cx = x - (size - 1) / 2.0
+            cy = y - (size - 1) / 2.0
 
             # Perform rotation
             nx = np.cos(angle) * cx - np.sin(angle) * cy
             ny = np.sin(angle) * cx + np.cos(angle) * cy
 
             # Translate back and round coordinates to _nearest_ integer
-            nx = nx + (size - 1) / 2.
-            ny = ny + (size - 1) / 2.
+            nx = nx + (size - 1) / 2.0
+            ny = ny + (size - 1) / 2.0
             nx = int(np.rint(nx))
             ny = int(np.rint(ny))
 
             # Perform swap if piece is an edge, and swap == 1 at NEW location
-            new_piece_idx = pieces[:,ny,nx].argmax()
+            new_piece_idx = pieces[:, ny, nx].argmax()
             edge_idx = new_piece_idx % 4
             if new_piece_idx >= 8 and edge_swaps[edge_idx] == 1:
-                is_f_edge = (new_piece_idx - 8) // 4    # 1 if f, 0 if e edge
+                is_f_edge = (new_piece_idx - 8) // 4  # 1 if f, 0 if e edge
                 edge_type_parity = 1 - 2 * is_f_edge
                 rotation_parity = 1 - 2 * (edge_idx // 2)
                 swap_dist = size // 4
@@ -168,40 +168,41 @@ def make_jigsaw_perm(size, seed=0):
             perm.append(new_idx)
 
     # sanity check
-    #import matplotlib.pyplot as plt
-    #missing = sorted(set(range(size*size)).difference(set(perm)))
-    #asdf = np.zeros(size*size)
-    #asdf[missing] = 1
-    #plt.imshow(asdf.reshape(size,size))
-    #plt.savefig('tmp.png')
-    #plt.show()
-    #print(np.sum(asdf))
+    # import matplotlib.pyplot as plt
+    # missing = sorted(set(range(size*size)).difference(set(perm)))
+    # asdf = np.zeros(size*size)
+    # asdf[missing] = 1
+    # plt.imshow(asdf.reshape(size,size))
+    # plt.savefig('tmp.png')
+    # plt.show()
+    # print(np.sum(asdf))
 
-    #viz = np.zeros((64,64))
-    #for idx in perm:
+    # viz = np.zeros((64,64))
+    # for idx in perm:
     #    y, x = idx // 64, idx % 64
     #    viz[y,x] = 1
-    #plt.imshow(viz)
-    #plt.savefig('tmp.png')
-    #Image.fromarray(viz * 255).convert('RGB').save('tmp.png')
-    #Image.fromarray(pieces_edge1[0] * 255).convert('RGB').save('tmp.png')
+    # plt.imshow(viz)
+    # plt.savefig('tmp.png')
+    # Image.fromarray(viz * 255).convert('RGB').save('tmp.png')
+    # Image.fromarray(pieces_edge1[0] * 255).convert('RGB').save('tmp.png')
 
     # sanity check on test image
-    #im = Image.open('results/flip.campfire.man/0000/sample_64.png')
-    #im = Image.open('results/flip.campfire.man/0000/sample_256.png')
-    #im = np.array(im)
-    #Image.fromarray(im.reshape(-1, 3)[perm].reshape(size,size,3)).save('test.png')
+    # im = Image.open('results/flip.campfire.man/0000/sample_64.png')
+    # im = Image.open('results/flip.campfire.man/0000/sample_256.png')
+    # im = np.array(im)
+    # Image.fromarray(im.reshape(-1, 3)[perm].reshape(size,size,3)).save('test.png')
 
     return torch.tensor(perm), (piece_perms, edge_swaps)
 
-#for i in range(100):
-    #make_jigsaw_perm(64, seed=i)
-#make_jigsaw_perm(256, seed=11)
+
+# for i in range(100):
+# make_jigsaw_perm(64, seed=i)
+# make_jigsaw_perm(256, seed=11)
 
 
 def recover_patch_permute(im_0, im_1, patch_size):
-    '''
-    Given two views of a patch permutation illusion, recover the patch 
+    """
+    Given two views of a patch permutation illusion, recover the patch
     permutation used.
 
     im_0 (PIL.Image) :
@@ -212,31 +213,31 @@ def recover_patch_permute(im_0, im_1, patch_size):
 
     patch_size (int) :
         Size of the patches in the image
-    '''
+    """
 
     # Convert to tensors
     im_0 = TF.to_tensor(im_0)
     im_1 = TF.to_tensor(im_1)
 
     # Extract patches
-    patches_0 = rearrange(im_0,
-                          'c (h p1) (w p2) -> (h w) c p1 p2', 
-                          p1=patch_size, 
-                          p2=patch_size)
-    patches_1 = rearrange(im_1,
-                          'c (h p1) (w p2) -> (h w) c p1 p2', 
-                          p1=patch_size, 
-                          p2=patch_size)
+    patches_0 = rearrange(
+        im_0, "c (h p1) (w p2) -> (h w) c p1 p2", p1=patch_size, p2=patch_size
+    )
+    patches_1 = rearrange(
+        im_1, "c (h p1) (w p2) -> (h w) c p1 p2", p1=patch_size, p2=patch_size
+    )
 
     # Repeat patches_1 for each patch in patches_0
-    patches_1_repeated = repeat(patches_1, 
-                                'np c p1 p2 -> np1 np c p1 p2', 
-                                np=patches_1.shape[0], 
-                                np1=patches_1.shape[0], 
-                                p1=patch_size, 
-                                p2=patch_size)
+    patches_1_repeated = repeat(
+        patches_1,
+        "np c p1 p2 -> np1 np c p1 p2",
+        np=patches_1.shape[0],
+        np1=patches_1.shape[0],
+        p1=patch_size,
+        p2=patch_size,
+    )
 
     # Find closest patch in other image by L1 dist, and return indexes
-    perm = (patches_1_repeated - patches_0[:,None]).abs().sum((2,3,4)).argmin(1)
+    perm = (patches_1_repeated - patches_0[:, None]).abs().sum((2, 3, 4)).argmin(1)
 
     return perm

@@ -1,5 +1,6 @@
 from .view_base import BaseView
 
+
 class IdentityView(BaseView):
     def __init__(self):
         pass

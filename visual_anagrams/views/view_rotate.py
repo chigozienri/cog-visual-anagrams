@@ -1,6 +1,5 @@
-from PIL import Image
-
 import torchvision.transforms.functional as TF
+from PIL import Image
 from torchvision.transforms import InterpolationMode
 
 from .view_base import BaseView
@@ -22,13 +21,15 @@ class Rotate90CWView(BaseView):
         frame_size = int(im_size * 1.5)
         theta = t * -90
 
-        frame = Image.new('RGB', (frame_size, frame_size), (255, 255, 255))
+        frame = Image.new("RGB", (frame_size, frame_size), (255, 255, 255))
         centered_loc = (frame_size - im_size) // 2
         frame.paste(im, (centered_loc, centered_loc))
-        frame = frame.rotate(theta, 
-                             resample=Image.Resampling.BILINEAR, 
-                             expand=False, 
-                             fillcolor=(255,255,255))
+        frame = frame.rotate(
+            theta,
+            resample=Image.Resampling.BILINEAR,
+            expand=False,
+            fillcolor=(255, 255, 255),
+        )
 
         return frame
 
@@ -49,13 +50,15 @@ class Rotate90CCWView(BaseView):
         frame_size = int(im_size * 1.5)
         theta = t * 90
 
-        frame = Image.new('RGB', (frame_size, frame_size), (255, 255, 255))
+        frame = Image.new("RGB", (frame_size, frame_size), (255, 255, 255))
         centered_loc = (frame_size - im_size) // 2
         frame.paste(im, (centered_loc, centered_loc))
-        frame = frame.rotate(theta, 
-                             resample=Image.Resampling.BILINEAR, 
-                             expand=False, 
-                             fillcolor=(255,255,255))
+        frame = frame.rotate(
+            theta,
+            resample=Image.Resampling.BILINEAR,
+            expand=False,
+            fillcolor=(255, 255, 255),
+        )
 
         return frame
 
@@ -76,12 +79,14 @@ class Rotate180View(BaseView):
         frame_size = int(im_size * 1.5)
         theta = t * 180
 
-        frame = Image.new('RGB', (frame_size, frame_size), (255, 255, 255))
+        frame = Image.new("RGB", (frame_size, frame_size), (255, 255, 255))
         centered_loc = (frame_size - im_size) // 2
         frame.paste(im, (centered_loc, centered_loc))
-        frame = frame.rotate(theta, 
-                             resample=Image.Resampling.BILINEAR, 
-                             expand=False, 
-                             fillcolor=(255,255,255))
+        frame = frame.rotate(
+            theta,
+            resample=Image.Resampling.BILINEAR,
+            expand=False,
+            fillcolor=(255, 255, 255),
+        )
 
         return frame
